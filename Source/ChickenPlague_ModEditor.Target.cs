@@ -1,0 +1,1 @@
+using UnrealBuildTool; public class ChickenPlague_ModEditorTarget : TargetRules { public ChickenPlague_ModEditorTarget(TargetInfo Target) : base(Target) { Type = TargetType.Editor; DefaultBuildSettings = BuildSettingsVersion.V6; IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_7; ExtraModuleNames.Add("ChickenPlague_Mod"); } }

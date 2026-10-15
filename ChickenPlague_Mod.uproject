@@ -1,0 +1,26 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.7",
+  "Category": "",
+  "Description": "",
+  "Plugins": [
+    {
+      "Name": "ModelingToolsEditorMode",
+      "Enabled": true,
+      "TargetAllowList": [
+        "Editor"
+      ]
+    },
+    {
+      "Name": "SteamMod",
+      "Enabled": true
+    }
+  ],
+  "Modules": [
+    {
+      "Name": "ChickenPlague_Mod",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ]
+}
