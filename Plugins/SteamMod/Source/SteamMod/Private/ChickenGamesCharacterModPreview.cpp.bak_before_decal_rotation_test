@@ -1,0 +1,63 @@
+#include "ChickenGamesCharacterModPreview.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Components/DecalComponent.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/SkeletalMeshSocket.h"
+
+AChickenGamesCharacterModPreview::AChickenGamesCharacterModPreview()
+{
+    CharacterMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("CharacterMesh")); RootComponent = CharacterMesh;
+    auto MakeMesh = [this](const TCHAR* Name, const TCHAR* Socket) { UStaticMeshComponent* C=CreateDefaultSubobject<UStaticMeshComponent>(FName(Name)); C->SetupAttachment(CharacterMesh,FName(Socket)); C->SetCollisionEnabled(ECollisionEnabled::NoCollision); return C; };
+    MediterraneanHair = MakeMesh(TEXT("MediterraneanHair"), TEXT("MediterraneanSeaHairSlot"));
+    Cockscomb = MakeMesh(TEXT("Cockscomb"), TEXT("HavingCockscombOnTheHeadSlot"));
+    BasketballHead = MakeMesh(TEXT("BasketballHead"), TEXT("BasketballHeadSlot"));
+    Microphone = MakeMesh(TEXT("Microphone"), TEXT("MicrophoneSlot"));
+    RapSunglasses = MakeMesh(TEXT("RapSunglasses"), TEXT("Rap_SunglassSlot"));
+    RapGoldNecklace = MakeMesh(TEXT("RapGoldNecklace"), TEXT("Rap_NickSlot"));
+    RapHat = MakeMesh(TEXT("RapHat"), TEXT("Rap_HatSlot"));
+    Basketball = MakeMesh(TEXT("Basketball"), TEXT("BasketballSlot"));
+    GuardGun = MakeMesh(TEXT("GuardGun"), TEXT("GunSlot"));
+    LayEgg = MakeMesh(TEXT("LayEgg"), TEXT("LayEggsSlot"));
+    for (int32 I=0; I<3; ++I) FeatherComponents.Add(MakeMesh(*FString::Printf(TEXT("Feather_%d"),I), *FString::Printf(TEXT("FeatherOnBodySlot_%d"),I)));
+    for (int32 I=0; I<5; ++I) { UDecalComponent* D=CreateDefaultSubobject<UDecalComponent>(*FString::Printf(TEXT("PawPrint_%d"),I)); D->SetupAttachment(CharacterMesh,*FString::Printf(TEXT("ChickenPawPrintsSlot_%d"),I)); PawPrintDecals.Add(D); }
+
+
+}
+
+FChickenGamesAttachmentPlacement AChickenGamesCharacterModPreview::ReadAttachment(USceneComponent* C) const
+{
+    FChickenGamesAttachmentPlacement P; if (!C || !CharacterMesh) return P;
+    P.bUseCustomPlacement=true; P.SourceSocket=C->GetAttachSocketName(); FTransform T=C->GetRelativeTransform();
+    if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(C)) P.Mesh=StaticMeshComponent->GetStaticMesh();
+    if (const USkeletalMeshSocket* S=CharacterMesh->GetSocketByName(P.SourceSocket)) { P.AttachBone=S->BoneName; T=T*S->GetSocketLocalTransform(); }
+    else P.AttachBone=P.SourceSocket;
+    P.Location=T.GetLocation(); P.Rotation=T.Rotator(); P.Scale=T.GetScale3D(); return P;
+}
+
+
+FChickenGamesDecalPlacement AChickenGamesCharacterModPreview::ReadDecal(UDecalComponent* C) const
+{
+    FChickenGamesDecalPlacement P; if (!C || !CharacterMesh) return P;
+    P.bUseCustomPlacement=true; P.SourceSocket=C->GetAttachSocketName(); FTransform T=C->GetRelativeTransform();
+    if (const USkeletalMeshSocket* S=CharacterMesh->GetSocketByName(P.SourceSocket)) { P.AttachBone=S->BoneName; T=T*S->GetSocketLocalTransform(); }
+    else P.AttachBone=P.SourceSocket;
+    P.Location=T.GetLocation(); P.Rotation=T.Rotator(); P.DecalSize=C->DecalSize; return P;
+}
+
+void AChickenGamesCharacterModPreview::WriteAppearanceProfile()
+{
+#if WITH_EDITOR
+    if (!TargetProfile || !CharacterMesh || !CharacterMesh->GetSkeletalMeshAsset()) return;
+    TargetProfile->Modify(); TargetProfile->CharacterMesh=CharacterMesh->GetSkeletalMeshAsset();
+    // Material slot arrays are authored directly on the Profile. The preview actor
+    // writes placement data only, so repeated writes never erase those arrays.
+    TargetProfile->MediterraneanHair=ReadAttachment(MediterraneanHair); TargetProfile->Cockscomb=ReadAttachment(Cockscomb);
+    TargetProfile->BasketballHead=ReadAttachment(BasketballHead); TargetProfile->Microphone=ReadAttachment(Microphone);
+    TargetProfile->RapSunglasses=ReadAttachment(RapSunglasses); TargetProfile->RapGoldNecklace=ReadAttachment(RapGoldNecklace); TargetProfile->RapHat=ReadAttachment(RapHat); TargetProfile->Basketball=ReadAttachment(Basketball);
+    TargetProfile->GuardGun=ReadAttachment(GuardGun); TargetProfile->LayEgg=ReadAttachment(LayEgg);
+    TargetProfile->FeatherOnBody.Reset(); for (UStaticMeshComponent* C:FeatherComponents) TargetProfile->FeatherOnBody.Add(ReadAttachment(C));
+    TargetProfile->ChickenPawPrintDecals.Reset(); for (UDecalComponent* C:PawPrintDecals) TargetProfile->ChickenPawPrintDecals.Add(ReadDecal(C));
+    TargetProfile->MarkPackageDirty();
+#endif
+}

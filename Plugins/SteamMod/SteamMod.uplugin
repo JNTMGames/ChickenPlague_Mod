@@ -1,0 +1,24 @@
+{
+  "FileVersion": 3,
+  "Version": 4,
+  "VersionName": "0.4",
+  "FriendlyName": "ChickenGames ModKit",
+  "Description": "ChickenGames resource, symptom, appearance, held-prop, map and manifest mod framework.",
+  "Category": "Modding",
+  "CanContainContent": false,
+  "Modules": [
+    {
+      "Name": "SteamMod",
+      "Type": "Runtime",
+      "LoadingPhase": "Default",
+      "PlatformAllowList": [
+        "Win64"
+      ]
+    },
+    {
+      "Name": "SteamModEditor",
+      "Type": "Editor",
+      "LoadingPhase": "Default"
+    }
+  ]
+}

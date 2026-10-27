@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "packageKind": "cooked-pak",
+  "platform": "Windows",
+  "id": "m_4c799709662b4f0283128738111318f3",
+  "contentRoot": "/Game/Mods/M_4c799709662b4f0283128738111318f3/",
+  "pak": "resources.pak",
+  "replacements": [
+    {"slot": "audio.sing", "asset": "/Game/Mods/M_4c799709662b4f0283128738111318f3/Sound/Sing.Sing"},
+    {"slot": "animation.walk", "asset": "/Game/Mods/M_4c799709662b4f0283128738111318f3/Animation/Walk.Walk"}
+  ]
+}

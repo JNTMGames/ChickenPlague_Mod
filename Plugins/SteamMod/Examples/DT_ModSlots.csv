@@ -1,0 +1,4 @@
+Name,MenuPath,EntryName,SlotId,AllowedClass,bRequired,SortOrder,Description
+YuJieSinging,人物/雨姐坤/音效/唱歌音效,singing,character.yujie.audio.singing,/Script/Engine.SoundBase,False,10,替换雨姐坤唱歌时使用的声音
+LaoDaWalk,人物/牢大坤/动画/走路动画,walkAnim,character.laoda.animation.walk,/Script/Engine.AnimSequence,False,20,替换牢大坤的循环走路动画
+LaoDaSinging,人物/牢大坤/音效/唱歌音效,singing,character.laoda.audio.singing,/Script/Engine.SoundBase,False,30,替换牢大坤唱歌时使用的声音
