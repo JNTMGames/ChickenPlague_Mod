@@ -1,0 +1,8 @@
+{
+	"BuildId": "47537391",
+	"Modules": 
+	{
+		"SteamMod": "UnrealEditor-SteamMod.dll",
+		"SteamModEditor": "UnrealEditor-SteamModEditor.dll"
+	}
+}

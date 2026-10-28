@@ -45,9 +45,7 @@
 SourceArt/**/*.png
 SourceArt/**/*.tga
 
-# Binary Files
-Binaries/*
-Plugins/*/Binaries/*
+# Binary Files required by the distributable ModKit are tracked with Git LFS.
 
 # Builds
 Build/*
@@ -75,7 +73,6 @@ DerivedDataCache/*
 .idea
 Developer
 /Plugins/CSJSDK/.svn
-/Plugins
 /SpeedyBlade.sln.DotSettings.user
 /Content/UrbanMaterialPack
 /Content/Asylum
@@ -135,9 +132,4 @@ Developer
 /Content/OrthoExplosions
 /Content/MovementAnimsetPro
 /Config/SteamAchievementIcons
-/Content/Mods
-/Content/Mods
-/Content/Texture
-/Content/Meshes
-/Content/ModKitReference
 /Windows
