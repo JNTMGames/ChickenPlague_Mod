@@ -25022,6 +25022,10 @@
 			"Type": "NonUFS"
 		},
 		{
+			"Path": "$(EngineDir)/Binaries/ThirdParty/Steamworks/Steamv161/Win64/steam_api64.dll",
+			"Type": "NonUFS"
+		},
+		{
 			"Path": "$(EngineDir)/Binaries/ThirdParty/USD/UsdResources/Win64/Arm64/plugins/hd/resources/codegenTemplates/schemaClass.cpp",
 			"Type": "NonUFS"
 		},
@@ -26939,6 +26943,10 @@
 		},
 		{
 			"Path": "$(EngineDir)/Binaries/Win64/sdrGlslfx.dll",
+			"Type": "NonUFS"
+		},
+		{
+			"Path": "$(EngineDir)/Binaries/Win64/steam_api64.dll",
 			"Type": "NonUFS"
 		},
 		{

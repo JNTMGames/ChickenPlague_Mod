@@ -3,6 +3,7 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Text/STextBlock.h"
@@ -49,10 +50,15 @@
 #include "Internationalization/Internationalization.h"
 #include "Internationalization/Culture.h"
 
+#if STEAMMOD_EDITOR_WITH_STEAMWORKS
+#include "steam/steam_api.h"
+#endif
+
 namespace
 {
     const FName TabName(TEXT("ChickenGamesModKit"));
     const TCHAR* FixedSlotTableObjectPath = TEXT("/Game/ModKitReference/DT_ModSlots.DT_ModSlots");
+    constexpr uint32 ChickenPlagueSteamAppId = 4672480;
 
     bool IsChineseModKit()
     {
@@ -114,6 +120,7 @@ namespace
             {TEXT("至少选择一个资源。"), TEXT("Select at least one resource.")},
             {TEXT("请先选择槽位配置表。"), TEXT("Select a slot table first.")},
             {TEXT("请填写地图名称和作者。"), TEXT("Enter the map name and author.")},
+            {TEXT("请填写资源 MOD 名称和作者。"), TEXT("Enter the Resource MOD name and author.")},
             {TEXT("请先在编辑器中打开地图。"), TEXT("Open a map in the editor first.")},
             {TEXT("请先保存当前地图。"), TEXT("Save the current map first.")},
             {TEXT("请先点“准备分包”。"), TEXT("Click Prepare Chunk first.")},
@@ -131,10 +138,41 @@ namespace
             {TEXT("MOD 收集完成。"), TEXT("MOD collection completed.")},
             {TEXT("已打开输出目录。"), TEXT("Output folder opened.")},
             {TEXT("尚未收集 MOD。"), TEXT("No MOD has been collected yet.")},
+            {TEXT("Steam 创意工坊"), TEXT("Steam Workshop")},
+            {TEXT("可选创意工坊筛选标签（仅资源 MOD）"), TEXT("Optional Workshop filter tags (Resource MOD only)")},
+            {TEXT("创意工坊可见性"), TEXT("Workshop Visibility")},
+            {TEXT("公开（所有人可见）"), TEXT("Public (visible to everyone)")},
+            {TEXT("不公开（通过链接访问，推荐测试）"), TEXT("Unlisted (accessible by link; recommended for testing)")},
+            {TEXT("仅好友可见"), TEXT("Friends only")}, {TEXT("私密（仅自己可见）"), TEXT("Private (only you)")},
+            {TEXT("答坤坤"), TEXT("Da Kunkun")}, {TEXT("牢大"), TEXT("Laoda")},
+            {TEXT("雨姐"), TEXT("Sister Yu")}, {TEXT("唱"), TEXT("Singing")},
+            {TEXT("跳"), TEXT("Dancing")}, {TEXT("篮球"), TEXT("Basketball")},
+            {TEXT("创意工坊标题 *"), TEXT("Workshop Title *")},
+            {TEXT("创意工坊介绍"), TEXT("Workshop Description")},
+            {TEXT("本次更新说明"), TEXT("Change Note")},
+            {TEXT("发布到 Steam 创意工坊"), TEXT("Publish to Steam Workshop")},
+            {TEXT("更新 Steam 创意工坊物品"), TEXT("Update Steam Workshop Item")},
+            {TEXT("请先收集当前 MOD，再发布到创意工坊。"), TEXT("Collect the current MOD before publishing it to the Workshop.")},
+            {TEXT("请填写创意工坊标题。"), TEXT("Enter a Workshop title.")},
+            {TEXT("Steam 未运行或 Steam API 初始化失败。请启动 Steam，并用拥有本游戏权限的账号登录。"), TEXT("Steam is not running or the Steam API could not initialize. Start Steam and sign in with an account that has access to this game.")},
+            {TEXT("Steam 创意工坊接口不可用。"), TEXT("Steam Workshop is unavailable.")},
+            {TEXT("正在创建创意工坊物品……"), TEXT("Creating Workshop item...")},
+            {TEXT("正在上传创意工坊内容……"), TEXT("Uploading Workshop content...")},
+            {TEXT("创意工坊物品创建失败："), TEXT("Could not create Workshop item: ")},
+            {TEXT("创意工坊更新提交失败："), TEXT("Could not submit Workshop update: ")},
+            {TEXT("创意工坊发布成功。"), TEXT("Workshop upload completed.")},
+            {TEXT("Steam 要求作者先接受创意工坊法律协议。请在浏览器打开该物品并接受协议。"), TEXT("Steam requires the author to accept the Workshop legal agreement. Open the item in a browser and accept it.")},
+            {TEXT("上传进度："), TEXT("Upload progress: ")},
+            {TEXT("创意工坊物品 ID："), TEXT("Workshop Item ID: ")},
+            {TEXT("创意工坊物品 ID：尚未发布"), TEXT("Workshop Item ID: Not published")},
+            {TEXT("发布到创意工坊前必须选择预览图并重新收集 MOD。"), TEXT("Choose a preview image and collect the MOD again before publishing it to the Workshop.")},
             {TEXT("还没有已保存项目"), TEXT("No saved projects yet")},
             {TEXT("正在读取配置……"), TEXT("Loading configuration...")},
             {TEXT("MOD ID（自动生成并保存）"), TEXT("MOD ID (generated and saved automatically)")},
             {TEXT("开发者槽位配置表"), TEXT("Developer Slot Table")},
+            {TEXT("资源 MOD 名称 *"), TEXT("Resource MOD Name *")},
+            {TEXT("资源 MOD 介绍"), TEXT("Resource MOD Description")},
+            {TEXT("资源 MOD 版本"), TEXT("Resource MOD Version")},
             {TEXT("资源 MOD 预览图"), TEXT("Resource MOD Preview")},
             {TEXT("地图 MOD · 当前打开的关卡"), TEXT("Map MOD - Current Level")},
             {TEXT("创建示例配置表"), TEXT("Create Example Table")},
@@ -353,23 +391,51 @@ namespace
 
         TSharedPtr<SEditableTextBox> IdBox;
         TSharedPtr<SEditableTextBox> ResourcePreviewBox;
+        TSharedPtr<SEditableTextBox> ResourceNameBox;
+        TSharedPtr<SEditableTextBox> ResourceAuthorBox;
+        TSharedPtr<SEditableTextBox> ResourceDescriptionBox;
+        TSharedPtr<SEditableTextBox> ResourceVersionBox;
         TSharedPtr<SEditableTextBox> MapNameBox;
         TSharedPtr<SEditableTextBox> MapAuthorBox;
         TSharedPtr<SEditableTextBox> MapDescriptionBox;
         TSharedPtr<SEditableTextBox> MapVersionBox;
         TSharedPtr<SEditableTextBox> MapPreviewBox;
+        TSharedPtr<SEditableTextBox> WorkshopTitleBox;
+        TSharedPtr<SEditableTextBox> WorkshopDescriptionBox;
+        TSharedPtr<SEditableTextBox> WorkshopChangeNoteBox;
         TSharedPtr<STextBlock> Status;
         TSharedPtr<SVerticalBox> SlotList;
         TSharedPtr<STextBlock> OutputPathText;
         TSharedPtr<STextBlock> ProjectTypeText;
+        TSharedPtr<STextBlock> WorkshopItemText;
         FString LastOutputDirectory;
+        FString WorkshopItemId;
+        FString WorkshopVisibility = TEXT("Unlisted");
+        TSet<FString> WorkshopExtraTags;
         bool bMapPackagePrepared = false;
+        bool bWorkshopBusy = false;
+        bool bSteamApiReady = false;
+        bool bSteamReleasePending = false;
         FString ProjectType;
         FAssetData SlotTableAsset;
         TMap<FName, FChickenGamesModSlotRow> Definitions;
         TArray<FName> OrderedSlots;
         TArray<FName> ActiveSlots;
         TMap<FName, FAssetData> Selections;
+
+#if STEAMMOD_EDITOR_WITH_STEAMWORKS
+        void* SteamDllHandle = nullptr;
+        UGCUpdateHandle_t ActiveWorkshopUpdate = k_UGCUpdateHandleInvalid;
+        CCallResult<SChickenGamesModKitPanel, CreateItemResult_t> CreateItemCallResult;
+        CCallResult<SChickenGamesModKitPanel, SubmitItemUpdateResult_t> SubmitItemCallResult;
+#endif
+
+        ~SChickenGamesModKitPanel() override
+        {
+#if STEAMMOD_EDITOR_WITH_STEAMWORKS
+            ReleaseSteamWorkshop();
+#endif
+        }
 
         FString Id() const { return IdBox.IsValid() ? IdBox->GetText().ToString().TrimStartAndEnd() : FString(); }
         FString FolderName() const { return TEXT("M_") + Id(); }
@@ -381,6 +447,55 @@ namespace
         FString ProjectTypeLabel() const { return ProjectType == TEXT("map") ? TEXT("地图 MOD") : ProjectType == TEXT("resource") ? TEXT("资源替换 MOD") : TEXT("未指定"); }
         void RefreshProjectTypeText() const { if (ProjectTypeText.IsValid()) ProjectTypeText->SetText(ModKitText(TEXT("当前项目：") + ProjectTypeLabel())); }
         FString OutputDirectory() const { return FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("ChickenGamesModKit/Build"), Id())); }
+        void RefreshWorkshopItemText() const
+        {
+            if (WorkshopItemText.IsValid())
+            {
+                WorkshopItemText->SetText(ModKitText(WorkshopItemId.IsEmpty()
+                    ? TEXT("创意工坊物品 ID：尚未发布")
+                    : TEXT("创意工坊物品 ID：") + WorkshopItemId));
+            }
+        }
+
+        FString WorkshopVisibilityLabel() const
+        {
+            if (WorkshopVisibility == TEXT("Public")) return TEXT("公开（所有人可见）");
+            if (WorkshopVisibility == TEXT("FriendsOnly")) return TEXT("仅好友可见");
+            if (WorkshopVisibility == TEXT("Private")) return TEXT("私密（仅自己可见）");
+            return TEXT("不公开（通过链接访问，推荐测试）");
+        }
+
+        TSharedRef<SWidget> BuildWorkshopVisibilityMenu()
+        {
+            FMenuBuilder Menu(true, nullptr);
+            const auto AddVisibility = [this, &Menu](const TCHAR* Value, const TCHAR* Label)
+            {
+                Menu.AddMenuEntry(ModKitText(Label), FText::GetEmpty(), FSlateIcon(), FUIAction(FExecuteAction::CreateLambda([this, Value = FString(Value)]()
+                {
+                    WorkshopVisibility = Value;
+                    SaveCurrentMod();
+                })));
+            };
+            AddVisibility(TEXT("Public"), TEXT("公开（所有人可见）"));
+            AddVisibility(TEXT("Unlisted"), TEXT("不公开（通过链接访问，推荐测试）"));
+            AddVisibility(TEXT("FriendsOnly"), TEXT("仅好友可见"));
+            AddVisibility(TEXT("Private"), TEXT("私密（仅自己可见）"));
+            return Menu.MakeWidget();
+        }
+
+        TSharedRef<SWidget> MakeWorkshopTagCheckBox(const TCHAR* TagName, const TCHAR* Label)
+        {
+            const FString TagValue(TagName);
+            return SNew(SCheckBox)
+                .IsChecked_Lambda([this, TagValue]() { return WorkshopExtraTags.Contains(TagValue) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+                .OnCheckStateChanged_Lambda([this, TagValue](ECheckBoxState State)
+                {
+                    if (State == ECheckBoxState::Checked) WorkshopExtraTags.Add(TagValue);
+                    else WorkshopExtraTags.Remove(TagValue);
+                    SaveCurrentMod();
+                })
+                [SNew(STextBlock).Text(ModKitText(Label))];
+        }
 
         FString SlotLabel(FName SlotId) const
         {
@@ -403,11 +518,25 @@ namespace
             Json->SetStringField(TEXT("contentRoot"), Root() + TEXT("/"));
             Json->SetStringField(TEXT("slotTable"), FixedSlotTableObjectPath);
             Json->SetStringField(TEXT("resourcePreview"),ResourcePreviewBox.IsValid()?ResourcePreviewBox->GetText().ToString():FString());
+            Json->SetStringField(TEXT("resourceName"),ResourceNameBox.IsValid()?ResourceNameBox->GetText().ToString():FString());
+            Json->SetStringField(TEXT("resourceAuthor"),ResourceAuthorBox.IsValid()?ResourceAuthorBox->GetText().ToString():FString());
+            Json->SetStringField(TEXT("resourceDescription"),ResourceDescriptionBox.IsValid()?ResourceDescriptionBox->GetText().ToString():FString());
+            Json->SetStringField(TEXT("resourceVersion"),ResourceVersionBox.IsValid()?ResourceVersionBox->GetText().ToString():TEXT("1.0"));
             Json->SetStringField(TEXT("mapName"),MapNameBox.IsValid()?MapNameBox->GetText().ToString():FString());
             Json->SetStringField(TEXT("mapAuthor"),MapAuthorBox.IsValid()?MapAuthorBox->GetText().ToString():FString());
             Json->SetStringField(TEXT("mapDescription"),MapDescriptionBox.IsValid()?MapDescriptionBox->GetText().ToString():FString());
             Json->SetStringField(TEXT("mapVersion"),MapVersionBox.IsValid()?MapVersionBox->GetText().ToString():TEXT("1.0"));
             Json->SetStringField(TEXT("mapPreview"),MapPreviewBox.IsValid()?MapPreviewBox->GetText().ToString():FString());
+            Json->SetStringField(TEXT("workshopTitle"), WorkshopTitleBox.IsValid() ? WorkshopTitleBox->GetText().ToString() : FString());
+            Json->SetStringField(TEXT("workshopDescription"), WorkshopDescriptionBox.IsValid() ? WorkshopDescriptionBox->GetText().ToString() : FString());
+            Json->SetStringField(TEXT("workshopChangeNote"), WorkshopChangeNoteBox.IsValid() ? WorkshopChangeNoteBox->GetText().ToString() : FString());
+            Json->SetStringField(TEXT("workshopItemId"), WorkshopItemId);
+            Json->SetStringField(TEXT("workshopVisibility"), WorkshopVisibility);
+            TArray<TSharedPtr<FJsonValue>> SavedWorkshopTags;
+            TArray<FString> SortedWorkshopTags = WorkshopExtraTags.Array();
+            SortedWorkshopTags.Sort();
+            for (const FString& TagName : SortedWorkshopTags) SavedWorkshopTags.Add(MakeShared<FJsonValueString>(TagName));
+            Json->SetArrayField(TEXT("workshopTags"), SavedWorkshopTags);
             TArray<TSharedPtr<FJsonValue>> SavedSelections;
             for (const FName SlotId : ActiveSlots)
             {
@@ -514,12 +643,43 @@ namespace
             if (!FPaths::DirectoryExists(ProjectContentDirectory(SavedId))) return false;
             RefreshProjectTypeText();
             FString SavedValue;
+            if (WorkshopTitleBox.IsValid()) WorkshopTitleBox->SetText(FText::GetEmpty());
+            if (WorkshopDescriptionBox.IsValid()) WorkshopDescriptionBox->SetText(FText::GetEmpty());
+            if (WorkshopChangeNoteBox.IsValid()) WorkshopChangeNoteBox->SetText(FText::GetEmpty());
+            if (ResourceNameBox.IsValid()) ResourceNameBox->SetText(FText::GetEmpty());
+            if (ResourceAuthorBox.IsValid()) ResourceAuthorBox->SetText(FText::GetEmpty());
+            if (ResourceDescriptionBox.IsValid()) ResourceDescriptionBox->SetText(FText::GetEmpty());
+            if (ResourceVersionBox.IsValid()) ResourceVersionBox->SetText(ModKitText(TEXT("1.0")));
             if(Json->TryGetStringField(TEXT("resourcePreview"),SavedValue) && ResourcePreviewBox.IsValid()) ResourcePreviewBox->SetText(ModKitText(SavedValue));
+            if(Json->TryGetStringField(TEXT("resourceName"),SavedValue) && ResourceNameBox.IsValid()) ResourceNameBox->SetText(ModKitText(SavedValue));
+            if(Json->TryGetStringField(TEXT("resourceAuthor"),SavedValue) && ResourceAuthorBox.IsValid()) ResourceAuthorBox->SetText(ModKitText(SavedValue));
+            if(Json->TryGetStringField(TEXT("resourceDescription"),SavedValue) && ResourceDescriptionBox.IsValid()) ResourceDescriptionBox->SetText(ModKitText(SavedValue));
+            if(Json->TryGetStringField(TEXT("resourceVersion"),SavedValue) && ResourceVersionBox.IsValid()) ResourceVersionBox->SetText(ModKitText(SavedValue));
             if(Json->TryGetStringField(TEXT("mapName"),SavedValue)) MapNameBox->SetText(ModKitText(SavedValue));
             if(Json->TryGetStringField(TEXT("mapAuthor"),SavedValue)) MapAuthorBox->SetText(ModKitText(SavedValue));
             if(Json->TryGetStringField(TEXT("mapDescription"),SavedValue)) MapDescriptionBox->SetText(ModKitText(SavedValue));
             if(Json->TryGetStringField(TEXT("mapVersion"),SavedValue)) MapVersionBox->SetText(ModKitText(SavedValue));
             if(Json->TryGetStringField(TEXT("mapPreview"),SavedValue)) MapPreviewBox->SetText(ModKitText(SavedValue));
+            if(Json->TryGetStringField(TEXT("workshopTitle"),SavedValue) && WorkshopTitleBox.IsValid()) WorkshopTitleBox->SetText(ModKitText(SavedValue));
+            if(Json->TryGetStringField(TEXT("workshopDescription"),SavedValue) && WorkshopDescriptionBox.IsValid()) WorkshopDescriptionBox->SetText(ModKitText(SavedValue));
+            if(Json->TryGetStringField(TEXT("workshopChangeNote"),SavedValue) && WorkshopChangeNoteBox.IsValid()) WorkshopChangeNoteBox->SetText(ModKitText(SavedValue));
+            WorkshopItemId.Empty();
+            Json->TryGetStringField(TEXT("workshopItemId"), WorkshopItemId);
+            WorkshopVisibility = TEXT("Public");
+            Json->TryGetStringField(TEXT("workshopVisibility"), WorkshopVisibility);
+            if (WorkshopVisibility != TEXT("Public") && WorkshopVisibility != TEXT("Unlisted") && WorkshopVisibility != TEXT("FriendsOnly") && WorkshopVisibility != TEXT("Private")) WorkshopVisibility = TEXT("Public");
+            WorkshopExtraTags.Empty();
+            const TArray<TSharedPtr<FJsonValue>>* SavedWorkshopTags = nullptr;
+            if (Json->TryGetArrayField(TEXT("workshopTags"), SavedWorkshopTags))
+            {
+                static const TSet<FString> AllowedTags = { TEXT("ChickenBro"), TEXT("DaKunkun"), TEXT("Laoda"), TEXT("Laoba"), TEXT("Kunkun"), TEXT("Yujie"), TEXT("Guizi"), TEXT("Singing"), TEXT("Dancing"), TEXT("Rap"), TEXT("Basketball") };
+                for (const TSharedPtr<FJsonValue>& TagValue : *SavedWorkshopTags)
+                {
+                    FString TagName;
+                    if (TagValue.IsValid() && TagValue->TryGetString(TagName) && AllowedTags.Contains(TagName)) WorkshopExtraTags.Add(TagName);
+                }
+            }
+            RefreshWorkshopItemText();
             const TArray<TSharedPtr<FJsonValue>>* Items = nullptr;
             if (Json->TryGetArrayField(TEXT("selections"), Items)) for (const TSharedPtr<FJsonValue>& Item : *Items)
             {
@@ -540,11 +700,20 @@ namespace
             IdBox->SetText(ModKitText(FGuid::NewGuid().ToString(EGuidFormats::Digits).ToLower()));
             ActiveSlots.Empty(); Selections.Empty(); LastOutputDirectory.Empty(); bMapPackagePrepared = false;
             if (ResourcePreviewBox.IsValid()) ResourcePreviewBox->SetText(FText::GetEmpty());
+            if (ResourceNameBox.IsValid()) ResourceNameBox->SetText(FText::GetEmpty());
+            if (ResourceAuthorBox.IsValid()) ResourceAuthorBox->SetText(FText::GetEmpty());
+            if (ResourceDescriptionBox.IsValid()) ResourceDescriptionBox->SetText(FText::GetEmpty());
+            if (ResourceVersionBox.IsValid()) ResourceVersionBox->SetText(ModKitText(TEXT("1.0")));
             if (MapNameBox.IsValid()) MapNameBox->SetText(FText::GetEmpty());
             if (MapAuthorBox.IsValid()) MapAuthorBox->SetText(FText::GetEmpty());
             if (MapDescriptionBox.IsValid()) MapDescriptionBox->SetText(FText::GetEmpty());
             if (MapVersionBox.IsValid()) MapVersionBox->SetText(ModKitText(TEXT("1.0")));
             if (MapPreviewBox.IsValid()) MapPreviewBox->SetText(FText::GetEmpty());
+            if (WorkshopTitleBox.IsValid()) WorkshopTitleBox->SetText(FText::GetEmpty());
+            if (WorkshopDescriptionBox.IsValid()) WorkshopDescriptionBox->SetText(FText::GetEmpty());
+            if (WorkshopChangeNoteBox.IsValid()) WorkshopChangeNoteBox->SetText(FText::GetEmpty());
+            WorkshopItemId.Empty(); WorkshopVisibility = TEXT("Unlisted"); WorkshopExtraTags.Empty(); bWorkshopBusy = false;
+            RefreshWorkshopItemText();
             CreateModFolders(); RefreshProjectTypeText();
             if (OutputPathText.IsValid()) OutputPathText->SetText(ModKitText(TEXT("尚未收集 MOD。")));
             RebuildSlotList(); SaveCurrentMod();
@@ -710,6 +879,9 @@ namespace
         FReply Prepare()
         {
             if (ProjectType != TEXT("resource")) { Status->SetText(ModKitText(TEXT("当前是地图项目。请切换到资源替换 MOD 后再准备资源分包。"))); return FReply::Handled(); }
+            const FString DisplayName = ResourceNameBox.IsValid() ? ResourceNameBox->GetText().ToString().TrimStartAndEnd() : FString();
+            const FString Author = ResourceAuthorBox.IsValid() ? ResourceAuthorBox->GetText().ToString().TrimStartAndEnd() : FString();
+            if (DisplayName.IsEmpty() || Author.IsEmpty()) { Status->SetText(ModKitText(TEXT("请填写资源 MOD 名称和作者。"))); return FReply::Handled(); }
             FString Error; if (!Validate(Error)) { Status->SetText(ModKitText(Error)); return FReply::Handled(); }
             const FString PackagePath = Root(); const FString AssetName = TEXT("PAL_") + Id();
             UPrimaryAssetLabel* Label = LoadObject<UPrimaryAssetLabel>(nullptr, *(PackagePath + TEXT("/") + AssetName + TEXT(".") + AssetName));
@@ -724,6 +896,10 @@ namespace
             const FString PendingDir = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("ChickenGamesModKit/Pending")); IFileManager::Get().MakeDirectory(*PendingDir, true);
             TSharedRef<FJsonObject> Json = MakeShared<FJsonObject>(); Json->SetNumberField(TEXT("schemaVersion"), 1); Json->SetStringField(TEXT("id"), Id());
             Json->SetStringField(TEXT("contentRoot"), Root() + TEXT("/")); Json->SetStringField(TEXT("modType"), TEXT("resource")); Json->SetStringField(TEXT("slotTable"), SlotTableAsset.GetObjectPathString());
+            Json->SetStringField(TEXT("displayName"), DisplayName);
+            Json->SetStringField(TEXT("author"), Author);
+            Json->SetStringField(TEXT("description"), ResourceDescriptionBox.IsValid() ? ResourceDescriptionBox->GetText().ToString() : FString());
+            Json->SetStringField(TEXT("version"), ResourceVersionBox.IsValid() ? ResourceVersionBox->GetText().ToString().TrimStartAndEnd() : TEXT("1.0"));
             const FString Preview=ResourcePreviewBox.IsValid()?ResourcePreviewBox->GetText().ToString():FString();
             if(!Preview.IsEmpty())
             {
@@ -800,10 +976,22 @@ namespace
             if (!BuildCleanNamespacePak(Pak, CleanPak, Error)) { Status->SetText(ModKitText(Error)); return FReply::Handled(); }
             Json->SetStringField(TEXT("packageKind"), TEXT("cooked-pak")); Json->SetStringField(TEXT("platform"), TEXT("Windows")); Json->SetStringField(TEXT("pak"), TEXT("resources.pak"));
             FString PreviewFile;
-            if(Json->TryGetStringField(TEXT("preview"),PreviewFile)&&!PreviewFile.IsEmpty())
+            const FString CurrentPreview = ResourcePreviewBox.IsValid() ? ResourcePreviewBox->GetText().ToString() : FString();
+            if (!CurrentPreview.IsEmpty())
             {
-                const FString Source=ResourcePreviewBox.IsValid()?ResourcePreviewBox->GetText().ToString():FString();
-                if(IFileManager::Get().Copy(*FPaths::Combine(Out,PreviewFile),*Source,true,true)!=COPY_OK)
+                const FString Ext = FPaths::GetExtension(CurrentPreview).ToLower();
+                if (!FPaths::FileExists(CurrentPreview) || (Ext != TEXT("png") && Ext != TEXT("jpg") && Ext != TEXT("jpeg")))
+                { Status->SetText(ModKitText(TEXT("资源 MOD 预览图必须是存在的 PNG 或 JPG 文件。"))); return FReply::Handled(); }
+                PreviewFile = TEXT("preview.") + Ext;
+                Json->SetStringField(TEXT("preview"), PreviewFile);
+            }
+            else
+            {
+                Json->TryGetStringField(TEXT("preview"), PreviewFile);
+            }
+            if (!PreviewFile.IsEmpty())
+            {
+                if (CurrentPreview.IsEmpty() || IFileManager::Get().Copy(*FPaths::Combine(Out, PreviewFile), *CurrentPreview, true, true) != COPY_OK)
                 { Status->SetText(ModKitText(TEXT("复制资源 MOD 预览图失败。"))); return FReply::Handled(); }
             }
             FString FinalText; FJsonSerializer::Serialize(Json.ToSharedRef(), TJsonWriterFactory<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>::Create(&FinalText));
@@ -1092,10 +1280,28 @@ namespace
             Json->SetStringField(TEXT("platform"), TEXT("Windows"));
             Json->SetStringField(TEXT("pak"), TEXT("resources.pak"));
             FString PreviewFile;
-            if(Json->TryGetStringField(TEXT("preview"),PreviewFile)&&!PreviewFile.IsEmpty())
+            const FString CurrentPreview = MapPreviewBox.IsValid() ? MapPreviewBox->GetText().ToString() : FString();
+            if (!CurrentPreview.IsEmpty())
             {
-                const FString Source=MapPreviewBox->GetText().ToString();
-                if(IFileManager::Get().Copy(*FPaths::Combine(Out,PreviewFile),*Source,true,true)!=COPY_OK)
+                const FString Ext = FPaths::GetExtension(CurrentPreview).ToLower();
+                if (!FPaths::FileExists(CurrentPreview) || (Ext != TEXT("png") && Ext != TEXT("jpg") && Ext != TEXT("jpeg")))
+                { Status->SetText(ModKitText(TEXT("预览图必须是存在的 PNG 或 JPG 文件。"))); return FReply::Handled(); }
+                PreviewFile = TEXT("preview.") + Ext;
+                Json->SetStringField(TEXT("preview"), PreviewFile);
+            }
+            else
+            {
+                Json->TryGetStringField(TEXT("preview"), PreviewFile);
+            }
+            if (!PreviewFile.IsEmpty())
+            {
+                const FString Destination = FPaths::Combine(Out, PreviewFile);
+                if (!CurrentPreview.IsEmpty())
+                {
+                    if (IFileManager::Get().Copy(*Destination, *CurrentPreview, true, true) != COPY_OK)
+                    { Status->SetText(ModKitText(TEXT("复制地图预览图失败。"))); return FReply::Handled(); }
+                }
+                else if (!FPaths::FileExists(Destination))
                 { Status->SetText(ModKitText(TEXT("复制地图预览图失败。"))); return FReply::Handled(); }
             }
             FString FinalText;
@@ -1117,6 +1323,322 @@ namespace
                 Status->SetText(ModKitText(TEXT("已打开输出目录。")));
             }
             else Status->SetText(ModKitText(TEXT("输出目录不存在，请先收集 MOD。")));
+            return FReply::Handled();
+        }
+
+        bool GetWorkshopUploadFiles(FString& ContentDirectory, FString& PreviewFile, FString& Error) const
+        {
+            ContentDirectory = OutputDirectory();
+            const FString ManifestPath = FPaths::Combine(ContentDirectory, TEXT("manifest.json"));
+            if (!FPaths::DirectoryExists(ContentDirectory) || !FPaths::FileExists(ManifestPath))
+            {
+                Error = TEXT("请先收集当前 MOD，再发布到创意工坊。");
+                return false;
+            }
+            FString ManifestText;
+            TSharedPtr<FJsonObject> Manifest;
+            FString PreviewName;
+            if (!FFileHelper::LoadFileToString(ManifestText, *ManifestPath)
+                || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(ManifestText), Manifest)
+                || !Manifest.IsValid())
+            {
+                Error = TEXT("请先收集当前 MOD，再发布到创意工坊。");
+                return false;
+            }
+            Manifest->TryGetStringField(TEXT("preview"), PreviewName);
+            const FString SelectedPreview = ProjectType == TEXT("map")
+                ? (MapPreviewBox.IsValid() ? MapPreviewBox->GetText().ToString() : FString())
+                : (ResourcePreviewBox.IsValid() ? ResourcePreviewBox->GetText().ToString() : FString());
+            if (!SelectedPreview.IsEmpty())
+            {
+                const FString Ext = FPaths::GetExtension(SelectedPreview).ToLower();
+                if (!FPaths::FileExists(SelectedPreview) || (Ext != TEXT("png") && Ext != TEXT("jpg") && Ext != TEXT("jpeg")))
+                {
+                    Error = TEXT("发布到创意工坊前必须选择预览图并重新收集 MOD。");
+                    return false;
+                }
+                PreviewName = TEXT("preview.") + Ext;
+                PreviewFile = FPaths::Combine(ContentDirectory, PreviewName);
+                if (IFileManager::Get().Copy(*PreviewFile, *SelectedPreview, true, true) != COPY_OK)
+                {
+                    Error = ProjectType == TEXT("map") ? TEXT("复制地图预览图失败。") : TEXT("复制资源 MOD 预览图失败。");
+                    return false;
+                }
+                Manifest->SetStringField(TEXT("preview"), PreviewName);
+                FString UpdatedManifest;
+                FJsonSerializer::Serialize(Manifest.ToSharedRef(), TJsonWriterFactory<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>::Create(&UpdatedManifest));
+                if (!FFileHelper::SaveStringToFile(UpdatedManifest, *ManifestPath))
+                {
+                    Error = TEXT("写入最终清单失败。");
+                    return false;
+                }
+            }
+            else if (PreviewName.IsEmpty())
+            {
+                Error = TEXT("发布到创意工坊前必须选择预览图并重新收集 MOD。");
+                return false;
+            }
+            PreviewFile = FPaths::Combine(ContentDirectory, PreviewName);
+            if (!FPaths::FileExists(PreviewFile))
+            {
+                Error = TEXT("发布到创意工坊前必须选择预览图并重新收集 MOD。");
+                return false;
+            }
+            return true;
+        }
+
+#if STEAMMOD_EDITOR_WITH_STEAMWORKS
+        void ReleaseSteamWorkshop()
+        {
+            CreateItemCallResult.Cancel();
+            SubmitItemCallResult.Cancel();
+            ActiveWorkshopUpdate = k_UGCUpdateHandleInvalid;
+            bWorkshopBusy = false;
+            bSteamReleasePending = false;
+            if (bSteamApiReady)
+            {
+                SteamAPI_Shutdown();
+                bSteamApiReady = false;
+            }
+            FPlatformMisc::SetEnvironmentVar(TEXT("SteamAppId"), TEXT(""));
+            FPlatformMisc::SetEnvironmentVar(TEXT("SteamGameId"), TEXT(""));
+        }
+
+        void RequestSteamWorkshopRelease()
+        {
+            bWorkshopBusy = false;
+            ActiveWorkshopUpdate = k_UGCUpdateHandleInvalid;
+            bSteamReleasePending = true;
+        }
+
+        bool EnsureSteamWorkshop()
+        {
+            if (bSteamApiReady && SteamUGC()) return true;
+            if (!SteamDllHandle)
+            {
+                const TArray<FString> CandidateDlls = {
+                    FPaths::Combine(FPaths::ProjectDir(), TEXT("Binaries/Win64/steam_api64.dll")),
+                    FPaths::Combine(FPaths::EngineDir(), TEXT("Binaries/ThirdParty/Steamworks/Steamv161/Win64/steam_api64.dll"))
+                };
+                for (const FString& Candidate : CandidateDlls)
+                {
+                    if (FPaths::FileExists(Candidate))
+                    {
+                        SteamDllHandle = FPlatformProcess::GetDllHandle(*Candidate);
+                        if (SteamDllHandle) break;
+                    }
+                }
+            }
+            if (!SteamDllHandle) return false;
+            FPlatformMisc::SetEnvironmentVar(TEXT("SteamAppId"), TEXT("4672480"));
+            FPlatformMisc::SetEnvironmentVar(TEXT("SteamGameId"), TEXT("4672480"));
+            bSteamApiReady = SteamAPI_Init() && SteamUGC();
+            return bSteamApiReady;
+        }
+
+        bool SubmitWorkshopUpdate()
+        {
+            FString ContentDirectory, PreviewFile, Error;
+            if (!GetWorkshopUploadFiles(ContentDirectory, PreviewFile, Error))
+            {
+                bWorkshopBusy = false;
+                Status->SetText(ModKitText(Error));
+                RequestSteamWorkshopRelease();
+                return false;
+            }
+            const uint64 NumericId = FCString::Strtoui64(*WorkshopItemId, nullptr, 10);
+            if (NumericId == 0 || !SteamUGC())
+            {
+                bWorkshopBusy = false;
+                Status->SetText(ModKitText(TEXT("Steam 创意工坊接口不可用。")));
+                RequestSteamWorkshopRelease();
+                return false;
+            }
+
+            ActiveWorkshopUpdate = SteamUGC()->StartItemUpdate(ChickenPlagueSteamAppId, PublishedFileId_t(NumericId));
+            if (ActiveWorkshopUpdate == k_UGCUpdateHandleInvalid)
+            {
+                bWorkshopBusy = false;
+                Status->SetText(ModKitText(TEXT("创意工坊更新提交失败：") + FString::FromInt(static_cast<int32>(k_EResultFail))));
+                RequestSteamWorkshopRelease();
+                return false;
+            }
+
+            const FString Title = WorkshopTitleBox->GetText().ToString().TrimStartAndEnd().Left(128);
+            const FString Description = WorkshopDescriptionBox->GetText().ToString().Left(8000);
+            const FString ChangeNote = WorkshopChangeNoteBox->GetText().ToString().Left(8000);
+            const FString TypeTag = ProjectType == TEXT("map") ? TEXT("Map Mod") : TEXT("Resource Mod");
+            const FString Metadata = FString::Printf(TEXT("{\"modId\":\"%s\",\"modType\":\"%s\"}"), *Id(), *ProjectType);
+            const ERemoteStoragePublishedFileVisibility SteamVisibility =
+                WorkshopVisibility == TEXT("Public") ? k_ERemoteStoragePublishedFileVisibilityPublic :
+                WorkshopVisibility == TEXT("FriendsOnly") ? k_ERemoteStoragePublishedFileVisibilityFriendsOnly :
+                WorkshopVisibility == TEXT("Private") ? k_ERemoteStoragePublishedFileVisibilityPrivate :
+                k_ERemoteStoragePublishedFileVisibilityUnlisted;
+            FTCHARToUTF8 TitleUtf8(*Title);
+            FTCHARToUTF8 DescriptionUtf8(*Description);
+            FTCHARToUTF8 ContentUtf8(*ContentDirectory);
+            FTCHARToUTF8 PreviewUtf8(*PreviewFile);
+            FTCHARToUTF8 MetadataUtf8(*Metadata);
+            TArray<FString> AllTags = { TypeTag };
+            if (ProjectType == TEXT("resource"))
+            {
+                TArray<FString> ExtraTags = WorkshopExtraTags.Array();
+                ExtraTags.Sort();
+                AllTags.Append(ExtraTags);
+            }
+            TArray<TUniquePtr<FTCHARToUTF8>> TagUtf8Values;
+            TArray<const char*> TagPointers;
+            for (const FString& TagName : AllTags)
+            {
+                TUniquePtr<FTCHARToUTF8> Encoded = MakeUnique<FTCHARToUTF8>(*TagName);
+                TagPointers.Add(Encoded->Get());
+                TagUtf8Values.Add(MoveTemp(Encoded));
+            }
+            SteamParamStringArray_t Tags;
+            Tags.m_ppStrings = TagPointers.GetData();
+            Tags.m_nNumStrings = static_cast<int32>(TagPointers.Num());
+
+            struct FWorkshopParameterResult
+            {
+                const TCHAR* Name;
+                bool bSucceeded;
+            };
+            const FWorkshopParameterResult ParameterResults[] = {
+                { TEXT("标题"), SteamUGC()->SetItemTitle(ActiveWorkshopUpdate, TitleUtf8.Get()) },
+                { TEXT("介绍"), SteamUGC()->SetItemDescription(ActiveWorkshopUpdate, DescriptionUtf8.Get()) },
+                { TEXT("内容目录"), SteamUGC()->SetItemContent(ActiveWorkshopUpdate, ContentUtf8.Get()) },
+                { TEXT("预览图"), SteamUGC()->SetItemPreview(ActiveWorkshopUpdate, PreviewUtf8.Get()) },
+                { TEXT("元数据"), SteamUGC()->SetItemMetadata(ActiveWorkshopUpdate, MetadataUtf8.Get()) },
+                { TEXT("标签"), SteamUGC()->SetItemTags(ActiveWorkshopUpdate, &Tags) },
+                { TEXT("可见性"), SteamUGC()->SetItemVisibility(ActiveWorkshopUpdate, SteamVisibility) }
+            };
+            for (const FWorkshopParameterResult& ParameterResult : ParameterResults)
+            {
+                if (!ParameterResult.bSucceeded)
+                {
+                    bWorkshopBusy = false;
+                    ActiveWorkshopUpdate = k_UGCUpdateHandleInvalid;
+                    Status->SetText(ModKitText(FString::Printf(TEXT("创意工坊参数设置失败：%s"), ParameterResult.Name)));
+                    RequestSteamWorkshopRelease();
+                    return false;
+                }
+            }
+
+            FTCHARToUTF8 ChangeNoteUtf8(*ChangeNote);
+            const SteamAPICall_t Call = SteamUGC()->SubmitItemUpdate(ActiveWorkshopUpdate, ChangeNoteUtf8.Get());
+            if (Call == k_uAPICallInvalid)
+            {
+                bWorkshopBusy = false;
+                ActiveWorkshopUpdate = k_UGCUpdateHandleInvalid;
+                Status->SetText(ModKitText(TEXT("创意工坊更新提交失败：") + FString::FromInt(static_cast<int32>(k_EResultFail))));
+                RequestSteamWorkshopRelease();
+                return false;
+            }
+            SubmitItemCallResult.Set(Call, this, &SChickenGamesModKitPanel::OnSubmitItemResult);
+            Status->SetText(ModKitText(TEXT("正在上传创意工坊内容……")));
+            return true;
+        }
+
+        void OnCreateItemResult(CreateItemResult_t* Result, bool bIoFailure)
+        {
+            if (bIoFailure || !Result || Result->m_eResult != k_EResultOK)
+            {
+                bWorkshopBusy = false;
+                const int32 Code = Result ? static_cast<int32>(Result->m_eResult) : -1;
+                Status->SetText(ModKitText(TEXT("创意工坊物品创建失败：") + FString::FromInt(Code)));
+                RequestSteamWorkshopRelease();
+                return;
+            }
+            WorkshopItemId = FString::Printf(TEXT("%llu"), static_cast<unsigned long long>(Result->m_nPublishedFileId));
+            RefreshWorkshopItemText();
+            SaveCurrentMod();
+            SubmitWorkshopUpdate();
+        }
+
+        void OnSubmitItemResult(SubmitItemUpdateResult_t* Result, bool bIoFailure)
+        {
+            bWorkshopBusy = false;
+            ActiveWorkshopUpdate = k_UGCUpdateHandleInvalid;
+            if (bIoFailure || !Result || Result->m_eResult != k_EResultOK)
+            {
+                const int32 Code = Result ? static_cast<int32>(Result->m_eResult) : -1;
+                Status->SetText(ModKitText(TEXT("创意工坊更新提交失败：") + FString::FromInt(Code)));
+                RequestSteamWorkshopRelease();
+                return;
+            }
+            SaveCurrentMod();
+            Status->SetText(ModKitText(Result->m_bUserNeedsToAcceptWorkshopLegalAgreement
+                ? TEXT("Steam 要求作者先接受创意工坊法律协议。请在浏览器打开该物品并接受协议。")
+                : TEXT("创意工坊发布成功。")));
+            RequestSteamWorkshopRelease();
+        }
+
+        EActiveTimerReturnType TickWorkshop(double, float)
+        {
+            // Do not touch delay-loaded Steam symbols until the user explicitly starts
+            // an upload and EnsureSteamWorkshop has loaded steam_api64.dll successfully.
+            if (bSteamApiReady) SteamAPI_RunCallbacks();
+            if (bSteamReleasePending)
+            {
+                ReleaseSteamWorkshop();
+                return EActiveTimerReturnType::Continue;
+            }
+            if (bSteamApiReady && bWorkshopBusy && ActiveWorkshopUpdate != k_UGCUpdateHandleInvalid && SteamUGC())
+            {
+                uint64 BytesProcessed = 0, BytesTotal = 0;
+                const EItemUpdateStatus UpdateStatus = SteamUGC()->GetItemUpdateProgress(ActiveWorkshopUpdate, &BytesProcessed, &BytesTotal);
+                if (UpdateStatus != k_EItemUpdateStatusInvalid && BytesTotal > 0)
+                {
+                    const int32 Percent = FMath::Clamp(FMath::RoundToInt(100.0 * static_cast<double>(BytesProcessed) / static_cast<double>(BytesTotal)), 0, 100);
+                    Status->SetText(ModKitText(TEXT("上传进度：") + FString::FromInt(Percent) + TEXT("%")));
+                }
+            }
+            return EActiveTimerReturnType::Continue;
+        }
+#endif
+
+        FReply PublishWorkshop()
+        {
+            if (bWorkshopBusy) return FReply::Handled();
+            const FString Title = WorkshopTitleBox.IsValid() ? WorkshopTitleBox->GetText().ToString().TrimStartAndEnd() : FString();
+            if (Title.IsEmpty())
+            {
+                Status->SetText(ModKitText(TEXT("请填写创意工坊标题。")));
+                return FReply::Handled();
+            }
+            FString ContentDirectory, PreviewFile, Error;
+            if (!GetWorkshopUploadFiles(ContentDirectory, PreviewFile, Error))
+            {
+                Status->SetText(ModKitText(Error));
+                return FReply::Handled();
+            }
+#if STEAMMOD_EDITOR_WITH_STEAMWORKS
+            if (!EnsureSteamWorkshop())
+            {
+                Status->SetText(ModKitText(TEXT("Steam 未运行或 Steam API 初始化失败。请启动 Steam，并用拥有本游戏权限的账号登录。")));
+                return FReply::Handled();
+            }
+            SaveCurrentMod();
+            bWorkshopBusy = true;
+            if (!WorkshopItemId.IsEmpty())
+            {
+                SubmitWorkshopUpdate();
+            }
+            else
+            {
+                const SteamAPICall_t Call = SteamUGC()->CreateItem(ChickenPlagueSteamAppId, k_EWorkshopFileTypeCommunity);
+                if (Call == k_uAPICallInvalid)
+                {
+                    bWorkshopBusy = false;
+                    Status->SetText(ModKitText(TEXT("创意工坊物品创建失败：") + FString::FromInt(static_cast<int32>(k_EResultFail))));
+                    return FReply::Handled();
+                }
+                CreateItemCallResult.Set(Call, this, &SChickenGamesModKitPanel::OnCreateItemResult);
+                Status->SetText(ModKitText(TEXT("正在创建创意工坊物品……")));
+            }
+#else
+            Status->SetText(ModKitText(TEXT("Steam 创意工坊接口不可用。")));
+#endif
             return FReply::Handled();
         }
 
@@ -1153,6 +1675,14 @@ namespace
                     +SHorizontalBox::Slot().AutoWidth()[SNew(SButton).Text(ModKitText(TEXT("新建地图 MOD"))).OnClicked(this,&SChickenGamesModKitPanel::CreateMapProject)]]
                 +SVerticalBox::Slot().AutoHeight().Padding(16,0,16,12)[SAssignNew(ProjectTypeText, STextBlock).Text(ModKitText(TEXT("当前项目：未指定")))]
                 +SVerticalBox::Slot().AutoHeight()[SNew(SVerticalBox).Visibility_Lambda([this](){ return ProjectType == TEXT("resource") ? EVisibility::Visible : EVisibility::Collapsed; })
+                +SVerticalBox::Slot().AutoHeight().Padding(16,8)[SNew(STextBlock).Text(ModKitText(TEXT("资源 MOD 名称 *")))]
+                +SVerticalBox::Slot().AutoHeight().Padding(16,0,16,6)[SAssignNew(ResourceNameBox,SEditableTextBox).OnTextCommitted_Lambda([this](const FText&,ETextCommit::Type){SaveCurrentMod();})]
+                +SVerticalBox::Slot().AutoHeight().Padding(16,4)[SNew(STextBlock).Text(ModKitText(TEXT("作者 *")))]
+                +SVerticalBox::Slot().AutoHeight().Padding(16,0,16,6)[SAssignNew(ResourceAuthorBox,SEditableTextBox).OnTextCommitted_Lambda([this](const FText&,ETextCommit::Type){SaveCurrentMod();})]
+                +SVerticalBox::Slot().AutoHeight().Padding(16,4)[SNew(STextBlock).Text(ModKitText(TEXT("资源 MOD 介绍")))]
+                +SVerticalBox::Slot().AutoHeight().Padding(16,0,16,6)[SAssignNew(ResourceDescriptionBox,SEditableTextBox).OnTextCommitted_Lambda([this](const FText&,ETextCommit::Type){SaveCurrentMod();})]
+                +SVerticalBox::Slot().AutoHeight().Padding(16,4)[SNew(STextBlock).Text(ModKitText(TEXT("资源 MOD 版本")))]
+                +SVerticalBox::Slot().AutoHeight().Padding(16,0,16,6)[SAssignNew(ResourceVersionBox,SEditableTextBox).Text(ModKitText(TEXT("1.0"))).OnTextCommitted_Lambda([this](const FText&,ETextCommit::Type){SaveCurrentMod();})]
                 +SVerticalBox::Slot().AutoHeight().Padding(16,8)[SNew(STextBlock).Text(ModKitText(TEXT("资源 MOD 预览图")))]
                 +SVerticalBox::Slot().AutoHeight().Padding(16,0,16,12)[SNew(SHorizontalBox)+SHorizontalBox::Slot().FillWidth(1)[SAssignNew(ResourcePreviewBox,SEditableTextBox).IsReadOnly(true)]+SHorizontalBox::Slot().AutoWidth().Padding(8,0,0,0)[SNew(SButton).Text(ModKitText(TEXT("选择图片"))).OnClicked(this,&SChickenGamesModKitPanel::BrowseResourcePreview)]]
                 +SVerticalBox::Slot().AutoHeight().Padding(16,4,16,12)[SAssignNew(SlotList, SVerticalBox)]
@@ -1180,7 +1710,42 @@ namespace
                     +SHorizontalBox::Slot().AutoWidth().Padding(0,0,10,0)[SNew(SButton).Text(ModKitText(TEXT("1. 准备地图分包"))).OnClicked(this,&SChickenGamesModKitPanel::PrepareMap)]
                     +SHorizontalBox::Slot().AutoWidth()[SNew(SButton).Text(ModKitText(TEXT("2. 收集地图 MOD"))).OnClicked(this,&SChickenGamesModKitPanel::CollectMap)]]
                 ]
+                +SVerticalBox::Slot().AutoHeight().Padding(16,18,16,4)[SNew(STextBlock).Text(ModKitText(TEXT("Steam 创意工坊"))).Font(FCoreStyle::GetDefaultFontStyle("Bold", 16))]
+                +SVerticalBox::Slot().AutoHeight().Padding(16,4)[SNew(STextBlock).Text(ModKitText(TEXT("创意工坊标题 *")))]
+                +SVerticalBox::Slot().AutoHeight().Padding(16,0,16,6)[SAssignNew(WorkshopTitleBox,SEditableTextBox).OnTextCommitted_Lambda([this](const FText&,ETextCommit::Type){SaveCurrentMod();})]
+                +SVerticalBox::Slot().AutoHeight().Padding(16,4)[SNew(STextBlock).Text(ModKitText(TEXT("创意工坊介绍")))]
+                +SVerticalBox::Slot().AutoHeight().Padding(16,0,16,6)[SAssignNew(WorkshopDescriptionBox,SEditableTextBox).OnTextCommitted_Lambda([this](const FText&,ETextCommit::Type){SaveCurrentMod();})]
+                +SVerticalBox::Slot().AutoHeight().Padding(16,4)[SNew(STextBlock).Text(ModKitText(TEXT("本次更新说明")))]
+                +SVerticalBox::Slot().AutoHeight().Padding(16,0,16,6)[SAssignNew(WorkshopChangeNoteBox,SEditableTextBox).OnTextCommitted_Lambda([this](const FText&,ETextCommit::Type){SaveCurrentMod();})]
+                +SVerticalBox::Slot().AutoHeight().Padding(16,8,16,4)[SNew(STextBlock).Text(ModKitText(TEXT("创意工坊可见性")))]
+                +SVerticalBox::Slot().AutoHeight().Padding(16,0,16,6)[SNew(SComboButton)
+                    .OnGetMenuContent(this, &SChickenGamesModKitPanel::BuildWorkshopVisibilityMenu)
+                    .ButtonContent()[SNew(STextBlock).Text_Lambda([this]() { return ModKitText(WorkshopVisibilityLabel()); })]]
+                +SVerticalBox::Slot().AutoHeight().Padding(16,8,16,4)[SNew(STextBlock).Text(ModKitText(TEXT("可选创意工坊筛选标签（仅资源 MOD）"))).Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))]
+                +SVerticalBox::Slot().AutoHeight().Padding(16,0,16,2)[SNew(SHorizontalBox)
+                    +SHorizontalBox::Slot().AutoWidth().Padding(0,0,16,0)[MakeWorkshopTagCheckBox(TEXT("ChickenBro"), TEXT("鸡哥"))]
+                    +SHorizontalBox::Slot().AutoWidth().Padding(0,0,16,0)[MakeWorkshopTagCheckBox(TEXT("DaKunkun"), TEXT("答坤坤"))]
+                    +SHorizontalBox::Slot().AutoWidth().Padding(0,0,16,0)[MakeWorkshopTagCheckBox(TEXT("Laoda"), TEXT("牢大"))]
+                    +SHorizontalBox::Slot().AutoWidth().Padding(0,0,16,0)[MakeWorkshopTagCheckBox(TEXT("Laoba"), TEXT("老八"))]
+                    +SHorizontalBox::Slot().AutoWidth().Padding(0,0,16,0)[MakeWorkshopTagCheckBox(TEXT("Kunkun"), TEXT("坤坤"))]
+                    +SHorizontalBox::Slot().AutoWidth().Padding(0,0,16,0)[MakeWorkshopTagCheckBox(TEXT("Yujie"), TEXT("雨姐"))]
+                    +SHorizontalBox::Slot().AutoWidth()[MakeWorkshopTagCheckBox(TEXT("Guizi"), TEXT("鬼子"))]]
+                +SVerticalBox::Slot().AutoHeight().Padding(16,0,16,6)[SNew(SHorizontalBox)
+                    +SHorizontalBox::Slot().AutoWidth().Padding(0,0,16,0)[MakeWorkshopTagCheckBox(TEXT("Singing"), TEXT("唱"))]
+                    +SHorizontalBox::Slot().AutoWidth().Padding(0,0,16,0)[MakeWorkshopTagCheckBox(TEXT("Dancing"), TEXT("跳"))]
+                    +SHorizontalBox::Slot().AutoWidth().Padding(0,0,16,0)[MakeWorkshopTagCheckBox(TEXT("Rap"), TEXT("Rap"))]
+                    +SHorizontalBox::Slot().AutoWidth()[MakeWorkshopTagCheckBox(TEXT("Basketball"), TEXT("篮球"))]]
+                +SVerticalBox::Slot().AutoHeight().Padding(16,4,16,6)[SAssignNew(WorkshopItemText,STextBlock).Text(ModKitText(TEXT("创意工坊物品 ID：尚未发布")))]
+                +SVerticalBox::Slot().AutoHeight().Padding(16,4,16,12)[SNew(SButton)
+                    .ButtonStyle(FAppStyle::Get(), "PrimaryButton")
+                    .ContentPadding(FMargin(20,10))
+                    .Text_Lambda([this](){ return ModKitText(WorkshopItemId.IsEmpty() ? TEXT("发布到 Steam 创意工坊") : TEXT("更新 Steam 创意工坊物品")); })
+                    .IsEnabled_Lambda([this](){ return !bWorkshopBusy; })
+                    .OnClicked(this,&SChickenGamesModKitPanel::PublishWorkshop)]
                 +SVerticalBox::Slot().AutoHeight().Padding(16)[SAssignNew(Status, STextBlock).AutoWrapText(true).Text(ModKitText(TEXT("正在读取配置……")))]]];
+#if STEAMMOD_EDITOR_WITH_STEAMWORKS
+            RegisterActiveTimer(0.1f, FWidgetActiveTimerDelegate::CreateSP(this, &SChickenGamesModKitPanel::TickWorkshop));
+#endif
             const bool bFixedSlotTableLoaded = LoadFixedSlotTable(false);
             if (LoadCurrentMod()) { Status->SetText(ModKitText(TEXT("当前 MOD 已载入。资源目录：") + Root() + TEXT("/"))); const FString ExistingOutput = OutputDirectory(); if (FPaths::DirectoryExists(ExistingOutput)) { LastOutputDirectory = ExistingOutput; OutputPathText->SetText(ModKitText(TEXT("已输出：") + LastOutputDirectory)); } } else GenerateModId(TEXT("resource"));
             if (!bFixedSlotTableLoaded)
