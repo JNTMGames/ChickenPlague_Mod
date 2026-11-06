@@ -60,17 +60,7 @@ git lfs pull
 
 详细的角色、动画、症状、道具、地图制作以及打包测试步骤，请查看[中文制作手册](ChickenPlaguePoliceModDocument_ZH.docx)。
 
-## 维护者发布更新
 
-修改完成后，在工程目录依次运行：
-
-```powershell
-git add -A
-git commit -m "说明本次更新内容"
-git push
-```
-
-大文件会自动通过 Git LFS 上传。
 
 ## English
 
@@ -107,14 +97,7 @@ git lfs pull
 
 After the download finishes, open `ChickenPlague_Mod.uproject`. The first download is large, so wait for Git LFS to finish before opening the project.
 
-### Get Future Updates
 
-Run these commands inside the project folder:
-
-```powershell
-git pull
-git lfs pull
-```
 
 If you have changed the same files locally, commit or back up your work before pulling to avoid conflicts.
 
